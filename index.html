@@ -929,6 +929,18 @@ body{overflow-x:hidden}
 #side nav .bdg2 b,.nl-a .bdg2 b{margin:0;min-width:22px;text-align:center;font-size:11px;font-weight:800;padding:1px 6px;border-radius:20px;background:var(--grey-s);color:var(--muted)}
 #side nav .bdg2 b.hot{background:var(--late);color:#fff}
 #side nav .bdg2 b.hot.zero{background:transparent;color:var(--muted2);box-shadow:inset 0 0 0 1px var(--line)}
+.kvw{position:relative}
+.ib-pen{position:absolute;top:8px;right:8px;border:1px solid var(--line);background:var(--surface);border-radius:8px;width:28px;height:28px;display:grid;place-items:center;cursor:pointer;color:var(--muted);padding:0}
+.ib-pen:hover{color:var(--blue);border-color:var(--b-d3)}
+.ib-pen svg{width:14px;height:14px}
+.ib-pen.sm,.tl2-h .ib-pen{position:static;display:inline-grid;width:24px;height:24px;margin-left:6px;vertical-align:middle}
+.dsc h3{display:flex;align-items:center}
+.fe{border:1px solid var(--b-d3);background:var(--side-on);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.fe h3 svg{width:15px;height:15px;color:var(--blue)}
+.fe input,.fe select,.fe textarea{background:var(--surface)}
+.ce-edit{display:flex;flex-direction:column;gap:6px}
+.ce-edit textarea{width:100%}
+.ed{font-style:normal;color:var(--muted2);font-size:11px}
 </style></head><body><div class="app"><aside id="side" aria-label="Menu"></aside><main id="main"><header id="top"></header><div id="view"><div class="loading">Chargement des actions…</div></div></main></div><div id="drawer"></div><div id="modal"></div><div id="toast" class="toast" role="status" aria-live="polite"></div><script>
 /* ======================= Référentiels ======================= */
 const DEFAULT_SETTINGS = {
@@ -1643,7 +1655,7 @@ function addBacklog(name){
 
 /* ======================= Panneau action ======================= */
 function current(){ return S.actions.get(S.openId) || (S.draft && S.draft.id === S.openId ? S.draft : null); }
-function openAction(id){ S.pg = {}; S.openId = id; S.pendingConfirm = null; renderDrawer(); }
+function openAction(id){ S.pg = {}; S.fe = null; S.ce = null; S.openId = id; S.pendingConfirm = null; renderDrawer(); }
 function openNew(extra){ if(ro()) return; S.draft = newAction(extra); openAction(S.draft.id); setTimeout(()=>{ const t = $(".dw-title"); t && t.focus(); }, 40); }
 function closeDrawer(){
   const a = current();
@@ -1708,6 +1720,7 @@ function timelineHTML(a){
   (a.history||[]).forEach(h=>{
     if(h.type === "status") ev.push({at:h.at, by:h.by, cls:"t-status", html:`a passé le statut de <b>${esc(COL_NAME[h.from]||h.from)}</b> à <b>${esc(COL_NAME[h.to]||h.to)}</b>`});
     else if(h.type === "task") ev.push({at:h.at, by:h.by, cls:"t-task", html:`a ${h.done?"coché":"décoché"} la tâche « ${esc(h.text)} »`});
+    else if(h.type === "edit") ev.push({at:h.at, by:h.by, cls:"t-status", html:`a modifié la fiche : ${esc((h.fields||[]).join(", "))}`});
   });
   (a.progress||[]).forEach(p=>{
     let html = p.done ? `a finalisé ${p.label?`« ${esc(p.label)} »`:"l’étape"}` : `a avancé ${p.label?`sur « ${esc(p.label)} »`:"sur l’action"}`;
@@ -1724,9 +1737,10 @@ function timelineHTML(a){
       : (l.stage === "validation" ? "a validé l’action : clôturée" : `a validé la relecture`);
     ev.push({at:l.at, by:l.by, cls:l.type==="return"?"t-return":l.type==="ok"?"t-ok":"t-req", html:txt + (l.due?` <span class="tl-due">deadline ${esc(fmtShort.format(parseISO(l.due)))}</span>`:""), note:l.note});
   });
-  (a.comments||[]).forEach(c=>ev.push({at:c.at, by:c.who, cls:"t-com", com:c.text}));
+  (a.comments||[]).forEach(c=>ev.push({at:c.at, by:c.who, cls:"t-com", com:c.text, cid:c.id, edited:c.editedAt}));
   ev.sort((x,y)=>y.at-x.at);
-  return `<ul class="tl2">${ev.map(e=>`<li class="${e.cls}">${avatar(e.by,"sm")}<div class="tl2-c"><div class="tl2-h"><b>${esc(person(e.by).name)}</b> ${e.com!==undefined?"a commenté":e.html}<time>${esc(fmtStamp.format(new Date(e.at)))}</time></div>${e.com!==undefined?`<div class="bub"><div class="txt">${esc(e.com)}</div></div>`:""}${e.note?`<q>${esc(e.note)}</q>`:""}${e.extra?`<div class="tl-tags">${e.extra}</div>`:""}</div></li>`).join("")}</ul>`;
+  const canC = e => e.cid && e.by === S.me && !S.readOnly;
+  return `<ul class="tl2">${ev.map(e=>`<li class="${e.cls}">${avatar(e.by,"sm")}<div class="tl2-c"><div class="tl2-h"><b>${esc(person(e.by).name)}</b> ${e.com!==undefined ? "a commenté" + (e.edited ? ' <em class="ed">(modifié)</em>' : "") + (canC(e) && S.ce !== e.cid ? `<button class="ib-pen" data-act="ce-open" data-v="${esc(e.cid)}" title="Modifier le commentaire" aria-label="Modifier le commentaire">${I.pen}</button>` : "") : e.html}<time>${esc(fmtStamp.format(new Date(e.at)))}</time></div>${e.com!==undefined ? (S.ce === e.cid ? `<div class="ce-edit"><textarea id="ceText" rows="3">${esc(e.com)}</textarea><div class="m-btns"><button class="btn sm" data-act="ce-cancel">Annuler</button><button class="btn primary sm" data-act="ce-save" data-v="${esc(e.cid)}">Enregistrer</button></div></div>` : `<div class="bub"><div class="txt">${esc(e.com)}</div></div>`) : ""}${e.note?`<q>${esc(e.note)}</q>`:""}${e.extra?`<div class="tl-tags">${e.extra}</div>`:""}</div></li>`).join("")}</ul>`;
 }
 function pgSync(){
   const g = id => { const el = $("#"+id); return el ? (el.type === "checkbox" ? el.checked : el.value) : undefined; };
@@ -1850,6 +1864,72 @@ async function doDelete(force){
   toast(sentTo ? `Action supprimée. ${person(a.createdBy).name} a reçu un email.` : force && a.createdBy !== S.me ? "Action supprimée, sans email." : "Action supprimée.");
 }
 
+function ficheHTML(a){
+  const can = !S.readOnly && a.createdBy === S.me;
+  const pv = pid => pid ? `<span class="own">${avatar(pid,"sm")}${esc(person(pid).name)}</span>` : `<span class="muted2">Personne</span>`;
+  const kv = (l, v) => `<div><dt>${l}</dt><dd>${v}</dd></div>`;
+  if(S.fe && S.fe.id === a.id){
+    const f = S.fe;
+    return `<section class="fe"><h3>${I.pen}Modifier la fiche</h3>
+      <label class="fld"><span>Intitulé</span><input id="feTitle" value="${esc(f.title)}"></label>
+      <div class="grid2">
+        <label class="fld"><span>Responsable</span><select id="feOwner">${peopleOpts(f.owner)}</select></label>
+        <label class="fld"><span>Date de fin</span><input type="date" id="feDue" value="${esc(f.due||"")}"></label>
+        <label class="fld"><span>Soumis à relecture par</span><select id="feRel">${peopleOpts(f.relecteur||"",true)}</select></label>
+        <label class="fld"><span>Soumis à validation par</span><select id="feVal">${peopleOpts(f.valideur||"",true)}</select></label>
+        <label class="fld"><span>Priorité</span><select id="fePrio">${["","P0","P1","P2"].map(p=>`<option value="${p}"${(f.priority||"")===p?" selected":""}>${p||"Aucune"}</option>`).join("")}</select></label>
+        <label class="fld"><span>Adjacence</span><select id="feSpace">${settings().spaces.map(s=>`<option value="${esc(s.id)}"${s.id===backlogOf(f.space).id?" selected":""}>${esc(s.name)}</option>`).join("")}</select></label>
+      </div>
+      <label class="fld"><span>Description</span><textarea id="feDesc" rows="5">${esc(f.desc||"")}</textarea></label>
+      <p class="m-err" id="feErr" hidden></p>
+      <div class="m-btns"><button class="btn" data-act="fe-cancel">Annuler</button><button class="btn primary" data-act="fe-save">${I.check}Enregistrer</button></div>
+    </section>`;
+  }
+  const di = a.due ? dueInfo(a.due, a.status==="done") : null;
+  const b = backlogOf(a.space);
+  const pen = (t) => can ? `<button class="ib-pen" data-act="fe-open" title="${t}" aria-label="${t}">${I.pen}</button>` : "";
+  return `<div class="kvw">${pen("Modifier la fiche")}<dl class="kvg">
+      ${kv("Responsable", pv(a.owner))}
+      ${kv("Date de fin", di ? `<span class="${di.cls==="late"?"red-t":""}">${esc(di.title)}${di.n<0&&a.status!=="done"?` · ${-di.n} j de retard`:""}</span>` : `<span class="muted2">Aucune</span>`)}
+      ${kv("Soumis à relecture par", pv(a.relecteur))}
+      ${kv("Soumis à validation par", pv(a.valideur))}
+      ${kv("Priorité", a.priority ? `<span class="prio ${esc(a.priority)}">${esc(a.priority)}</span>` : `<span class="muted2">Aucune</span>`)}
+      ${kv("Adjacence", `<span class="own"><span class="sp-mini" style="--spc:${spColor(b.id)}">${spIcon(b.id)}</span>${esc(b.name)}</span>`)}
+    </dl></div>
+    <p class="lock">${I.lock}${can ? "Vous avez créé cette fiche : le crayon permet de la modifier." : "Fiche modifiable uniquement par "+esc(person(a.createdBy).name)+", qui l’a créée. L’avancement se fait ci-dessous."}</p>
+    ${a.desc || can ? `<section class="dsc"><h3>Description${can ? `<button class="ib-pen sm" data-act="fe-open" title="Modifier la description" aria-label="Modifier la description">${I.pen}</button>` : ""}</h3>${a.desc ? `<p class="desc">${esc(a.desc)}</p>` : `<p class="hint" style="margin-top:6px">Aucune description.</p>`}</section>` : ""}`;
+}
+function openFicheEdit(){
+  const a = current(); if(!a || a.createdBy !== S.me || ro()) return;
+  S.fe = {id:a.id, title:a.title||"", owner:a.owner||"", due:a.due||"", relecteur:a.relecteur||"", valideur:a.valideur||"", priority:a.priority||"", space:a.space||"general", desc:a.desc||""};
+  renderDrawer();
+  setTimeout(()=>{ const t = $("#feTitle"); t && t.focus(); }, 30);
+}
+function saveFicheEdit(){
+  const a0 = current(); if(!a0 || !S.fe) return;
+  const v = id => ($("#"+id) || {}).value;
+  const title = (v("feTitle")||"").trim();
+  if(!title){ const e = $("#feErr"); e.textContent = "L’intitulé ne peut pas être vide."; e.hidden = false; return; }
+  const n = {title, owner:v("feOwner")||a0.owner, due:v("feDue")||"", relecteur:v("feRel")||"", valideur:v("feVal")||"", priority:v("fePrio")||"", space:v("feSpace")||a0.space, desc:v("feDesc")||""};
+  const L = {title:"Intitulé", owner:"Responsable", due:"Date de fin", relecteur:"Relecture", valideur:"Validation", priority:"Priorité", space:"Adjacence", desc:"Description"};
+  const a = clone(a0), changed = [];
+  Object.keys(n).forEach(k=>{ if((a[k]||"") !== (n[k]||"")){ changed.push(L[k]); a[k] = n[k]; } });
+  S.fe = null;
+  if(!changed.length){ renderDrawer(); return; }
+  a.history = a.history || [];
+  a.history.push({type:"edit", fields:changed, by:S.me, at:Date.now()});
+  if(persist(a)){ renderDrawer(); toast("Fiche modifiée."); }
+}
+function saveCommentEdit(cid){
+  const a0 = current(); const ta = $("#ceText"); if(!a0 || !ta) return;
+  const txt = ta.value.trim(); if(!txt){ ta.focus(); return; }
+  const a = clone(a0), c = (a.comments||[]).find(x=>x.id===cid);
+  if(!c || c.who !== S.me) return;
+  S.ce = null;
+  if(c.text === txt){ renderDrawer(); return; }
+  c.text = txt; c.editedAt = Date.now();
+  if(persist(a)){ renderDrawer(); toast("Commentaire modifié."); }
+}
 function renderDrawerView(a){
   const b = backlogOf(a.space), subs = a.subtasks||[], nd = subs.filter(t=>t.done).length, dis = S.readOnly ? " disabled" : "";
   const pv = pid => pid ? `<span class="own">${avatar(pid,"sm")}${esc(person(pid).name)}</span>` : `<span class="muted2">Personne</span>`;
@@ -1861,16 +1941,7 @@ function renderDrawerView(a){
     <div class="dw-b">
       ${funnelHTML(a)}
       <p class="note" id="hint" style="margin:0">${hintText(a)?I.info+esc(hintText(a)):""}</p>
-      <dl class="kvg">
-        ${kv("Responsable", pv(a.owner))}
-        ${kv("Date de fin", di ? `<span class="${di.cls==="late"?"red-t":""}">${esc(di.title)}${di.n<0&&a.status!=="done"?` · ${-di.n} j de retard`:""}</span>` : `<span class="muted2">Aucune</span>`)}
-        ${kv("Soumis à relecture par", pv(a.relecteur))}
-        ${kv("Soumis à validation par", pv(a.valideur))}
-        ${kv("Priorité", a.priority ? `<span class="prio ${esc(a.priority)}">${esc(a.priority)}</span>` : `<span class="muted2">Aucune</span>`)}
-        ${kv("Adjacence", `<span class="own"><span class="sp-mini" style="--spc:${spColor(b.id)}">${spIcon(b.id)}</span>${esc(b.name)}</span>`)}
-      </dl>
-      <p class="lock">${I.lock}Fiche figée après création. L’avancement se fait ci-dessous.</p>
-      ${a.desc ? `<section><h3>Description</h3><p class="desc">${esc(a.desc)}</p></section>` : ""}
+      ${ficheHTML(a)}
       ${progressHTML(a)}
       ${reviewSection(a)}
       ${subs.length ? `<section><h3>Tâches <small id="subProg">${nd} sur ${subs.length} faites</small></h3><div class="prog"><i id="subBar" style="width:${Math.round(nd/subs.length*100)}%"></i></div>
@@ -2096,6 +2167,12 @@ document.addEventListener("click", e=>{
     else if(act === "add-sub") addSub();
     else if(act === "add-com") addComment();
     else if(act === "pg-save") submitProgress();
+    else if(act === "fe-open") openFicheEdit();
+    else if(act === "fe-cancel"){ S.fe = null; renderDrawer(); }
+    else if(act === "fe-save") saveFicheEdit();
+    else if(act === "ce-open"){ S.ce = b.dataset.v; renderDrawer(); setTimeout(()=>{ const t = $("#ceText"); if(t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }, 30); }
+    else if(act === "ce-cancel"){ S.ce = null; renderDrawer(); }
+    else if(act === "ce-save") saveCommentEdit(b.dataset.v);
     else if(act === "del-open"){ const a = current(); if(a) openDeleteModal(a.id); }
     else if(act === "pg-st"){ pgSync(); S.pg.stOpen = true; renderDrawer(); }
     else if(act === "set-status"){ const a = current(); if(!a) return; const v = b.dataset.v; if(v === a.status) return;
