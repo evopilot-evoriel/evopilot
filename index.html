@@ -941,6 +941,10 @@ body{overflow-x:hidden}
 .ce-edit{display:flex;flex-direction:column;gap:6px}
 .ce-edit textarea{width:100%}
 .ed{font-style:normal;color:var(--muted2);font-size:11px}
+.st-note{display:block;font-size:11.5px;font-weight:500;color:var(--muted);font-style:italic;margin-top:2px;white-space:normal}
+.todo.view li.ok .st-note{text-decoration:none}
+.todo-add.view{margin-top:10px}
+.ic-green{background:var(--green-s);color:var(--green)}
 </style></head><body><div class="app"><aside id="side" aria-label="Menu"></aside><main id="main"><header id="top"></header><div id="view"><div class="loading">Chargement des actions…</div></div></main></div><div id="drawer"></div><div id="modal"></div><div id="toast" class="toast" role="status" aria-live="polite"></div><script>
 /* ======================= Référentiels ======================= */
 const DEFAULT_SETTINGS = {
@@ -1224,7 +1228,7 @@ function persist(a){
     a.history = Array.isArray(a.history) ? a.history : [];
     const lastRev = (a.reviewLog||[]).slice(-1)[0], lastPg = (a.progress||[]).slice(-1)[0];
     if(prev.status !== a.status && !(lastRev && now - lastRev.at < 3000) && !(lastPg && now - lastPg.at < 3000 && lastPg.to)) a.history.push({type:"status", from:prev.status, to:a.status, by:S.me, at:now});
-    (a.subtasks||[]).forEach(t=>{ const o = (prev.subtasks||[]).find(x=>x.id===t.id); if(o && !!o.done !== !!t.done) a.history.push({type:"task", text:t.text, done:!!t.done, by:S.me, at:now}); });
+    (a.subtasks||[]).forEach(t=>{ const o = (prev.subtasks||[]).find(x=>x.id===t.id); if(o && !!o.done !== !!t.done) a.history.push({type:"task", text:t.text, done:!!t.done, note: t.done ? (t.doneNote||"") : "", by:S.me, at:now}); if(!o) a.history.push({type:"taskadd", text:t.text, who:t.assignee||"", due:t.due||"", by:S.me, at:now}); });
   }
   a.updatedAt = now;
   if(S.draft && S.draft.id === a.id) S.draft = null;
@@ -1719,7 +1723,8 @@ function timelineHTML(a){
   if(a.createdAt) ev.push({at:a.createdAt, by:a.createdBy, html:"a créé l’action", cls:"t-create"});
   (a.history||[]).forEach(h=>{
     if(h.type === "status") ev.push({at:h.at, by:h.by, cls:"t-status", html:`a passé le statut de <b>${esc(COL_NAME[h.from]||h.from)}</b> à <b>${esc(COL_NAME[h.to]||h.to)}</b>`});
-    else if(h.type === "task") ev.push({at:h.at, by:h.by, cls:"t-task", html:`a ${h.done?"coché":"décoché"} la tâche « ${esc(h.text)} »`});
+    else if(h.type === "task") ev.push({at:h.at, by:h.by, cls: h.done ? "t-ok" : "t-task", html:`a ${h.done?"clôturé":"rouvert"} la tâche « ${esc(h.text)} »`, note:h.note});
+    else if(h.type === "taskadd") ev.push({at:h.at, by:h.by, cls:"t-task", html:`a ajouté la tâche « ${esc(h.text)} »${h.who ? " confiée à <b>"+esc(person(h.who).name)+"</b>" : ""}${h.due ? ` <span class="tl-due">pour le ${esc(fmtShort.format(parseISO(h.due)))}</span>` : ""}`});
     else if(h.type === "edit") ev.push({at:h.at, by:h.by, cls:"t-status", html:`a modifié la fiche : ${esc((h.fields||[]).join(", "))}`});
   });
   (a.progress||[]).forEach(p=>{
@@ -1930,6 +1935,26 @@ function saveCommentEdit(cid){
   c.text = txt; c.editedAt = Date.now();
   if(persist(a)){ renderDrawer(); toast("Commentaire modifié."); }
 }
+function openTaskClose(aid, sid){
+  if(ro()) return;
+  const a = S.actions.get(aid), t = a && (a.subtasks||[]).find(x=>x.id===sid); if(!t) return;
+  S.modal = {mode:"taskclose", aid, sid};
+  $("#modal").innerHTML = `<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <div class="mh"><span class="ti-ic ic-green">${I.check}</span><div><h2 id="mTitle">Clôturer la tâche</h2><p>${esc(t.text)}</p></div><button class="x" data-act="m-close" aria-label="Fermer">${I.x}</button></div>
+    <label class="fld"><span>Commentaire de clôture (optionnel)</span><textarea id="tcNote" rows="3" placeholder="Ce qui a été fait, résultat, lien vers le document…"></textarea></label>
+    <div class="m-btns"><button class="btn" data-act="m-close">Annuler</button><button class="btn primary" data-act="tc-ok">${I.check}Clôturer la tâche</button></div>
+  </div></div>`;
+  setTimeout(()=>{ const n = $("#tcNote"); n && n.focus(); }, 30);
+}
+function submitTaskClose(){
+  const m = S.modal; if(!m || m.mode !== "taskclose") return;
+  const a0 = S.actions.get(m.aid); if(!a0){ closeModal(); return; }
+  const note = ($("#tcNote").value || "").trim();
+  const a = clone(a0), t = (a.subtasks||[]).find(x=>x.id===m.sid); if(!t){ closeModal(); return; }
+  t.done = true; t.doneAt = Date.now(); t.doneBy = S.me; t.doneNote = note;
+  closeModal();
+  if(persist(a)){ if(S.openId === a.id) renderDrawer(); toast(a.subtasks.every(x=>x.done) ? "Tâche clôturée. Toutes les tâches de cette action sont faites." : "Tâche clôturée."); }
+}
 function renderDrawerView(a){
   const b = backlogOf(a.space), subs = a.subtasks||[], nd = subs.filter(t=>t.done).length, dis = S.readOnly ? " disabled" : "";
   const pv = pid => pid ? `<span class="own">${avatar(pid,"sm")}${esc(person(pid).name)}</span>` : `<span class="muted2">Personne</span>`;
@@ -1944,8 +1969,11 @@ function renderDrawerView(a){
       ${ficheHTML(a)}
       ${progressHTML(a)}
       ${reviewSection(a)}
-      ${subs.length ? `<section><h3>Tâches <small id="subProg">${nd} sur ${subs.length} faites</small></h3><div class="prog"><i id="subBar" style="width:${Math.round(nd/subs.length*100)}%"></i></div>
-        <ul class="todo view">${subs.map(t=>`<li class="${t.done?"ok":""}" data-sub="${esc(t.id)}"><label class="chk"><input type="checkbox" class="st-check"${t.done?" checked":""} aria-label="Fait : ${esc(t.text)}"${dis}><span></span></label><span class="st-text">${esc(t.text)}</span><span class="vw">${t.assignee?avatar(t.assignee,"xs2")+esc(person(t.assignee).name):""}</span><span class="vd">${t.due?esc(fmtShort.format(parseISO(t.due))):""}</span></li>`).join("")}</ul></section>` : ""}
+      <section><h3>Tâches <small id="subProg">${subs.length ? `${nd} sur ${subs.length} faites` : "Ajoutez les tâches au fil de l’eau"}</small></h3>
+        ${subs.length ? `<div class="prog"><i id="subBar" style="width:${Math.round(nd/subs.length*100)}%"></i></div>` : `<div style="height:8px"></div>`}
+        <ul class="todo view">${subs.map(t=>`<li class="${t.done?"ok":""}" data-sub="${esc(t.id)}"><label class="chk"><input type="checkbox" class="st-check"${t.done?" checked":""} aria-label="Fait : ${esc(t.text)}"${dis}><span></span></label><span class="st-text">${esc(t.text)}${t.done && t.doneNote ? `<small class="st-note">« ${esc(t.doneNote)} »${t.doneBy ? " · " + esc(person(t.doneBy).name) : ""}</small>` : ""}</span><span class="vw">${t.assignee?avatar(t.assignee,"xs2")+esc(person(t.assignee).name):""}</span><span class="vd">${t.due?esc(fmtShort.format(parseISO(t.due))):""}</span></li>`).join("")}</ul>
+        ${S.readOnly ? "" : `<div class="todo-add view"><input id="stNew" placeholder="Nouvelle tâche" aria-label="Nouvelle tâche"><select id="stWho" aria-label="Attribuer à">${peopleOpts("",true)}</select><input type="date" id="stDue" aria-label="Date de fin de la tâche"><button class="btn" data-act="add-sub">${I.plus}Ajouter</button></div>`}
+      </section>
       <section><h3>Suivi de l’action <small>avancements, commentaires et historique</small></h3>
         ${S.readOnly?"":`<div class="c-add">${avatar(S.me,"sm")}<textarea id="cNew" rows="2" placeholder="Ajouter un commentaire" aria-label="Nouveau commentaire"></textarea><button class="btn" data-act="add-com">Envoyer</button></div>`}
         ${timelineHTML(a)}
@@ -2126,7 +2154,7 @@ function addComment(){
 function toggleSub(aid, sid, done){
   const cur = S.actions.get(aid); if(!cur) return;
   const a = clone(cur), t = (a.subtasks||[]).find(x=>x.id===sid); if(!t) return;
-  t.done = done; t.doneAt = done ? Date.now() : null;
+  t.done = done; t.doneAt = done ? Date.now() : null; if(!done){ t.doneNote = ""; t.doneBy = null; }
   if(persist(a) && done) toast(a.subtasks.every(x=>x.done) ? "Toutes les tâches de cette action sont faites." : "Tâche cochée.");
 }
 function moveTo(id, status, space){
@@ -2150,6 +2178,7 @@ document.addEventListener("click", e=>{
     if(mb.dataset.act === "m-close") closeModal();
     else if(mb.dataset.act === "m-send") submitModal("send");
     else if(mb.dataset.act === "m-ok") submitModal("ok");
+    else if(mb.dataset.act === "tc-ok") submitTaskClose();
     else if(mb.dataset.act === "d-del") doDelete(false);
     else if(mb.dataset.act === "d-force") doDelete(true);
     else if(mb.dataset.act === "m-stage"){ const n = $("#mNote").value; openReviewModal(S.modal.id, "request", Object.assign({}, S.modal.extra, {stage: mb.dataset.v})); $("#mNote").value = n; }
@@ -2238,13 +2267,16 @@ document.addEventListener("change", e=>{
     if(el.id === "pgStatus"){ pgSync(); renderDrawer(); return; }
     if(el.dataset.field){ setField(el.dataset.field, el.dataset.field === "title" ? el.value.trim() : el.value); return; }
     const li = el.closest(".todo li"); if(!li) return; const sid = li.dataset.sub;
-    if(el.classList.contains("st-check")){ li.classList.toggle("ok", el.checked); editSub(sid, x=>{ x.done = el.checked; x.doneAt = el.checked ? Date.now() : null; }); }
+    if(el.classList.contains("st-check")){
+      const cur = current();
+      if(el.checked && cur && S.actions.has(cur.id)){ el.checked = false; openTaskClose(cur.id, sid); return; }
+      li.classList.toggle("ok", el.checked); editSub(sid, x=>{ x.done = el.checked; x.doneAt = el.checked ? Date.now() : null; if(!el.checked){ x.doneNote = ""; x.doneBy = null; } }); if(cur && S.actions.has(cur.id)) renderDrawer(); }
     else if(el.classList.contains("st-text")){ const v = el.value.trim(); if(v) editSub(sid, x=>{ x.text = v; }); }
     else if(el.classList.contains("st-who")) editSub(sid, x=>{ x.assignee = el.value; });
     else if(el.classList.contains("st-due")) editSub(sid, x=>{ x.due = el.value; });
     return;
   }
-  if(el.classList.contains("sub-check")){ toggleSub(el.dataset.id, el.dataset.sub, el.checked); return; }
+  if(el.classList.contains("sub-check")){ if(el.checked){ el.checked = false; openTaskClose(el.dataset.id, el.dataset.sub); return; } toggleSub(el.dataset.id, el.dataset.sub, false); return; }
   if(el.id === "fperson"){ S.f.person = el.value; render(); return; }
   if(el.id === "fbl"){ S.f.backlog = el.value; render(); return; }
   if(el.id === "fcalp"){ S.cal.person = el.value; render(); return; }
