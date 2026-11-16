@@ -945,6 +945,19 @@ body{overflow-x:hidden}
 .todo.view li.ok .st-note{text-decoration:none}
 .todo-add.view{margin-top:10px}
 .ic-green{background:var(--green-s);color:var(--green)}
+.todo.view li{grid-template-columns:auto minmax(0,1fr) auto auto auto}
+.todo.view li.te{grid-template-columns:minmax(0,1fr) 120px 132px auto;padding:6px}
+.todo.view li.te input,.todo.view li.te select{font-size:12.5px;padding:5px 8px;background:var(--surface)}
+.te-b{display:flex;gap:4px}
+.t-tools{display:flex;gap:2px}
+.ib-mini{border:0;background:none;color:var(--muted2);cursor:pointer;border-radius:6px;padding:3px;display:grid;place-items:center;font-size:11px;font-weight:800}
+.ib-mini svg{width:14px;height:14px}
+.ib-mini:hover{background:var(--surface);color:var(--blue)}
+.ib-mini.conf{background:var(--red);color:#fff;padding:3px 7px}
+.fchip.late b{background:var(--red-s);color:var(--red)}
+.fchip.late.on{background:var(--red-s);border-color:var(--red);color:var(--red)}
+#dwErr{margin:0 auto 0 0}
+@media (max-width:900px){.todo.view li.te{grid-template-columns:1fr 1fr}.todo.view li.te input:first-child{grid-column:1/-1}}
 </style></head><body><div class="app"><aside id="side" aria-label="Menu"></aside><main id="main"><header id="top"></header><div id="view"><div class="loading">Chargement des actions…</div></div></main></div><div id="drawer"></div><div id="modal"></div><div id="toast" class="toast" role="status" aria-live="polite"></div><script>
 /* ======================= Référentiels ======================= */
 const DEFAULT_SETTINGS = {
@@ -1227,8 +1240,7 @@ function persist(a){
   if(prev){
     a.history = Array.isArray(a.history) ? a.history : [];
     const lastRev = (a.reviewLog||[]).slice(-1)[0], lastPg = (a.progress||[]).slice(-1)[0];
-    if(prev.status !== a.status && !(lastRev && now - lastRev.at < 3000) && !(lastPg && now - lastPg.at < 3000 && lastPg.to)) a.history.push({type:"status", from:prev.status, to:a.status, by:S.me, at:now});
-    (a.subtasks||[]).forEach(t=>{ const o = (prev.subtasks||[]).find(x=>x.id===t.id); if(o && !!o.done !== !!t.done) a.history.push({type:"task", text:t.text, done:!!t.done, note: t.done ? (t.doneNote||"") : "", by:S.me, at:now}); if(!o) a.history.push({type:"taskadd", text:t.text, who:t.assignee||"", due:t.due||"", by:S.me, at:now}); });
+    (a.subtasks||[]).forEach(t=>{ const o = (prev.subtasks||[]).find(x=>x.id===t.id); if(o && !o.done && t.done && t.doneNote) a.history.push({type:"task", text:t.text, done:true, note:t.doneNote, by:S.me, at:now}); });
   }
   a.updatedAt = now;
   if(S.draft && S.draft.id === a.id) S.draft = null;
@@ -1484,7 +1496,7 @@ function renderWeek(){
   if(S.mySp && !s.spaces.some(x=>x.id===S.mySp)) S.mySp = "";
   const all = myItems().filter(x=>!S.mySp || backlogOf(x.a.space).id === S.mySp);
   const open = all.filter(x=>!x.done);
-  const kinds = {all:open, act:open.filter(x=>x.kind==="act"), rev:open.filter(x=>x.kind==="rev"), task:open.filter(x=>x.kind==="task")};
+  const kinds = {all:open, act:open.filter(x=>x.kind==="act"), rev:open.filter(x=>x.kind==="rev"), task:open.filter(x=>x.kind==="task"), late:open.filter(x=>x.due && daysUntil(x.due) < 0)};
   const items = kinds[S.mineKind] || open;
   const sortF = (x,y)=>(PR[x.a.priority]??3)-(PR[y.a.priority]??3) || (x.due||"9999").localeCompare(y.due||"9999");
   const L = {today:[], d3:[], wk:[], nw:[], w2:[], lt:[]};
@@ -1517,10 +1529,10 @@ function renderWeek(){
     ${ek("go-ens","doing",I.play,"ic-violet","En cours",kDoing,"Actions lancées")}
     ${ek("go-ens","waiting",I.hour,"ic-orange","En attente d’un retour",kWait,"Chez un relecteur")}
     ${ek("mine-kind","rev",I.review,"ic-amber","Retours à donner",kRev, kRev ? "Relectures et validations" : "Rien à relire")}
-    ${ek("mine-kind","all",I.warn,"ic-red","En retard",late.length, late.length ? "À traiter en priorité" : "Tout est à jour", !!late.length)}
+    ${ek("mine-kind","late",I.warn,"ic-red","En retard",late.length, late.length ? "À traiter en priorité" : "Tout est à jour", !!late.length)}
   </div>
   <div class="sec-h"><div><h2>${I.week}Cette semaine</h2><p>Échéances à 7 jours et actions lancées, classées par priorité. Cochez une tâche dès qu’elle est faite.</p></div>
-    <div class="fchips">${[["all","Tout",kinds.all.length],["act","Mes actions",kinds.act.length],["rev","Retours à donner",kinds.rev.length],["task","Tâches confiées",kinds.task.length]].map(([k,l,n])=>`<button class="fchip${S.mineKind===k?" on":""}" data-act="mine-kind" data-v="${k}">${l}<b>${n}</b></button>`).join("")}</div></div>
+    <div class="fchips">${[["all","Tout",kinds.all.length],["act","Mes actions",kinds.act.length],["rev","Retours à donner",kinds.rev.length],["task","Tâches confiées",kinds.task.length],["late","En retard",kinds.late.length]].map(([k,l,n])=>`<button class="fchip${k==="late"?" late":""}${S.mineKind===k?" on":""}" data-act="mine-kind" data-v="${k}">${l}<b>${n}</b></button>`).join("")}</div></div>
   ${late.length?`<div class="late-banner">${I.warn}<b>${plural(late.length,"élément")} en retard</b>à traiter en priorité</div>`:""}
   <div class="lanes">${lane("today","Aujourd’hui et en retard",L.today)}${lane("d3","Sous 3 jours",L.d3)}${lane("wk","D’ici 7 jours",L.wk)}</div>
   <div class="sec-h"><div><h2>${I.cal}Semaines suivantes</h2><p>Moins prioritaire : à anticiper</p></div></div>
@@ -1659,14 +1671,33 @@ function addBacklog(name){
 
 /* ======================= Panneau action ======================= */
 function current(){ return S.actions.get(S.openId) || (S.draft && S.draft.id === S.openId ? S.draft : null); }
-function openAction(id){ S.pg = {}; S.fe = null; S.ce = null; S.openId = id; S.pendingConfirm = null; renderDrawer(); }
+function openAction(id){ S.pg = {}; S.fe = null; S.ce = null; S.te = null; S.openId = id; S.pendingConfirm = null; renderDrawer(); }
 function openNew(extra){ if(ro()) return; S.draft = newAction(extra); openAction(S.draft.id); setTimeout(()=>{ const t = $(".dw-title"); t && t.focus(); }, 40); }
+function createDraft(){
+  const a = S.draft; if(!a || ro()) return;
+  const t = $(".dw-title"), d = $('[data-field="desc"]'), o = $('[data-field="owner"]');
+  const n = clone(a);
+  n.title = (t ? t.value : n.title || "").trim();
+  if(d) n.desc = d.value;
+  if(o) n.owner = o.value;
+  const miss = [];
+  if(!n.title) miss.push("l’intitulé");
+  if(!n.owner) miss.push("le responsable");
+  if(miss.length){
+    const e = $("#dwErr"); if(e){ e.textContent = "Renseignez " + miss.join(" et ") + " pour créer l’action."; e.hidden = false; }
+    const f = !n.title ? t : o; if(f) f.focus();
+    return;
+  }
+  S.openId = null; S.draft = null; S.pendingConfirm = null;
+  $("#drawer").innerHTML = ""; document.body.classList.remove("dw-open");
+  persist(n); toast("Action créée.");
+}
 function closeDrawer(){
   const a = current();
   if(a && !S.readOnly){
     const t = $(".dw-title"), d = $('[data-field="desc"]');
     const nt = t ? t.value.trim() : a.title, ndesc = d ? d.value : a.desc;
-    if(S.draft && S.draft.id === a.id){ if(nt){ const n = clone(a); n.title = nt; n.desc = ndesc; S.openId = null; persist(n); } }
+    if(S.draft && S.draft.id === a.id){ if(nt) toast("Création annulée : utilisez « Créer l’action » pour l’enregistrer."); }
     else if(nt !== a.title || ndesc !== (a.desc||"")){ const n = clone(a); n.title = nt || a.title || "Sans titre"; n.desc = ndesc; S.openId = null; persist(n); }
   }
   S.openId = null; S.draft = null; S.pendingConfirm = null;
@@ -1722,10 +1753,7 @@ function timelineHTML(a){
   const ev = [];
   if(a.createdAt) ev.push({at:a.createdAt, by:a.createdBy, html:"a créé l’action", cls:"t-create"});
   (a.history||[]).forEach(h=>{
-    if(h.type === "status") ev.push({at:h.at, by:h.by, cls:"t-status", html:`a passé le statut de <b>${esc(COL_NAME[h.from]||h.from)}</b> à <b>${esc(COL_NAME[h.to]||h.to)}</b>`});
-    else if(h.type === "task") ev.push({at:h.at, by:h.by, cls: h.done ? "t-ok" : "t-task", html:`a ${h.done?"clôturé":"rouvert"} la tâche « ${esc(h.text)} »`, note:h.note});
-    else if(h.type === "taskadd") ev.push({at:h.at, by:h.by, cls:"t-task", html:`a ajouté la tâche « ${esc(h.text)} »${h.who ? " confiée à <b>"+esc(person(h.who).name)+"</b>" : ""}${h.due ? ` <span class="tl-due">pour le ${esc(fmtShort.format(parseISO(h.due)))}</span>` : ""}`});
-    else if(h.type === "edit") ev.push({at:h.at, by:h.by, cls:"t-status", html:`a modifié la fiche : ${esc((h.fields||[]).join(", "))}`});
+    if(h.type === "task" && h.done && h.note) ev.push({at:h.at, by:h.by, cls: h.done ? "t-ok" : "t-task", html:`a ${h.done?"clôturé":"rouvert"} la tâche « ${esc(h.text)} »`, note:h.note});
   });
   (a.progress||[]).forEach(p=>{
     let html = p.done ? `a finalisé ${p.label?`« ${esc(p.label)} »`:"l’étape"}` : `a avancé ${p.label?`sur « ${esc(p.label)} »`:"sur l’action"}`;
@@ -1799,7 +1827,7 @@ function submitProgress(){
       const who = P.who || a.owner;
       a.next = {label:lab, due:P.nextDue||"", who, at:now, by:S.me};
       entry.next = {label:lab, due:P.nextDue||"", who};
-      if(who && who !== a.owner) a.subtasks.push({id:uid("t"), text:lab, assignee:who, due:P.nextDue||"", done:false, doneAt:null, fromNext:true});
+      if(who && who !== a.owner) a.subtasks.push({id:uid("t"), text:lab, assignee:who, due:P.nextDue||"", done:false, doneAt:null, fromNext:true, createdBy:S.me});
     } else a.next = null;
     if(ns === "waiting"){ if(a.status !== "waiting"){ toWaiting = true; entry.toWaiting = true; } }
     else if(ns !== a.status){ entry.from = a.status; entry.to = ns; applyStatus(a, ns); }
@@ -1921,8 +1949,6 @@ function saveFicheEdit(){
   Object.keys(n).forEach(k=>{ if((a[k]||"") !== (n[k]||"")){ changed.push(L[k]); a[k] = n[k]; } });
   S.fe = null;
   if(!changed.length){ renderDrawer(); return; }
-  a.history = a.history || [];
-  a.history.push({type:"edit", fields:changed, by:S.me, at:Date.now()});
   if(persist(a)){ renderDrawer(); toast("Fiche modifiée."); }
 }
 function saveCommentEdit(cid){
@@ -1955,6 +1981,30 @@ function submitTaskClose(){
   closeModal();
   if(persist(a)){ if(S.openId === a.id) renderDrawer(); toast(a.subtasks.every(x=>x.done) ? "Tâche clôturée. Toutes les tâches de cette action sont faites." : "Tâche clôturée."); }
 }
+function taskLi(a, t){
+  const dis = S.readOnly ? " disabled" : "";
+  const can = !S.readOnly && (t.createdBy || a.createdBy) === S.me;
+  if(can && S.te === t.id) return `<li class="te" data-sub="${esc(t.id)}"><input id="teText" value="${esc(t.text)}" aria-label="Intitulé de la tâche"><select id="teWho" aria-label="Attribuée à">${peopleOpts(t.assignee||"", true)}</select><input type="date" id="teDue" value="${esc(t.due||"")}" aria-label="Date de fin"><span class="te-b"><button class="btn sm" data-act="te-cancel">Annuler</button><button class="btn primary sm" data-act="te-save" data-v="${esc(t.id)}">OK</button></span></li>`;
+  const conf = S.pendingConfirm === "tdel:" + t.id;
+  return `<li class="${t.done?"ok":""}" data-sub="${esc(t.id)}"><label class="chk"><input type="checkbox" class="st-check"${t.done?" checked":""} aria-label="Fait : ${esc(t.text)}"${dis}><span></span></label><span class="st-text">${esc(t.text)}${t.done && t.doneNote ? `<small class="st-note">« ${esc(t.doneNote)} »${t.doneBy ? " · " + esc(person(t.doneBy).name) : ""}</small>` : ""}</span><span class="vw">${t.assignee?avatar(t.assignee,"xs2")+esc(person(t.assignee).name):""}</span><span class="vd">${t.due?esc(fmtShort.format(parseISO(t.due))):""}</span>${can ? `<span class="t-tools"><button class="ib-mini" data-act="te-open" data-v="${esc(t.id)}" title="Modifier la tâche" aria-label="Modifier la tâche">${I.pen}</button><button class="ib-mini${conf?" conf":""}" data-act="te-del" data-v="${esc(t.id)}" title="${conf?"Cliquez pour confirmer la suppression":"Supprimer la tâche"}" aria-label="Supprimer la tâche">${conf?"Supprimer ?":I.trash}</button></span>` : "<span></span>"}</li>`;
+}
+function saveTaskEdit(sid){
+  const a0 = current(); if(!a0) return;
+  const txt = ($("#teText").value || "").trim(); if(!txt){ $("#teText").focus(); return; }
+  const a = clone(a0), t = (a.subtasks||[]).find(x=>x.id===sid); if(!t) return;
+  if((t.createdBy || a.createdBy) !== S.me) return;
+  t.text = txt; t.assignee = $("#teWho").value; t.due = $("#teDue").value;
+  S.te = null;
+  if(persist(a)){ renderDrawer(); toast("Tâche modifiée."); }
+}
+function deleteTask(sid){
+  const a0 = current(); if(!a0) return;
+  const t0 = (a0.subtasks||[]).find(x=>x.id===sid); if(!t0 || (t0.createdBy || a0.createdBy) !== S.me) return;
+  if(S.pendingConfirm !== "tdel:" + sid){ S.pendingConfirm = "tdel:" + sid; renderDrawer(); return; }
+  S.pendingConfirm = null;
+  const a = clone(a0); a.subtasks = a.subtasks.filter(x=>x.id!==sid);
+  if(persist(a)){ renderDrawer(); toast("Tâche supprimée."); }
+}
 function renderDrawerView(a){
   const b = backlogOf(a.space), subs = a.subtasks||[], nd = subs.filter(t=>t.done).length, dis = S.readOnly ? " disabled" : "";
   const pv = pid => pid ? `<span class="own">${avatar(pid,"sm")}${esc(person(pid).name)}</span>` : `<span class="muted2">Personne</span>`;
@@ -1971,7 +2021,7 @@ function renderDrawerView(a){
       ${reviewSection(a)}
       <section><h3>Tâches <small id="subProg">${subs.length ? `${nd} sur ${subs.length} faites` : "Ajoutez les tâches au fil de l’eau"}</small></h3>
         ${subs.length ? `<div class="prog"><i id="subBar" style="width:${Math.round(nd/subs.length*100)}%"></i></div>` : `<div style="height:8px"></div>`}
-        <ul class="todo view">${subs.map(t=>`<li class="${t.done?"ok":""}" data-sub="${esc(t.id)}"><label class="chk"><input type="checkbox" class="st-check"${t.done?" checked":""} aria-label="Fait : ${esc(t.text)}"${dis}><span></span></label><span class="st-text">${esc(t.text)}${t.done && t.doneNote ? `<small class="st-note">« ${esc(t.doneNote)} »${t.doneBy ? " · " + esc(person(t.doneBy).name) : ""}</small>` : ""}</span><span class="vw">${t.assignee?avatar(t.assignee,"xs2")+esc(person(t.assignee).name):""}</span><span class="vd">${t.due?esc(fmtShort.format(parseISO(t.due))):""}</span></li>`).join("")}</ul>
+        <ul class="todo view">${subs.map(t=>taskLi(a, t)).join("")}</ul>
         ${S.readOnly ? "" : `<div class="todo-add view"><input id="stNew" placeholder="Nouvelle tâche" aria-label="Nouvelle tâche"><select id="stWho" aria-label="Attribuer à">${peopleOpts("",true)}</select><input type="date" id="stDue" aria-label="Date de fin de la tâche"><button class="btn" data-act="add-sub">${I.plus}Ajouter</button></div>`}
       </section>
       <section><h3>Suivi de l’action <small>avancements, commentaires et historique</small></h3>
@@ -1997,7 +2047,7 @@ function renderDrawer(){
       <div class="grid2">
         <label class="fld"><span>Adjacence</span><select data-field="space"${dis}>${settings().spaces.map(s=>`<option value="${esc(s.id)}"${s.id===b.id?" selected":""}>${esc(s.name)}</option>`).join("")}</select></label>
         <label class="fld"><span>Statut</span><select data-field="status"${dis}>${COLS.map(c=>`<option value="${c.id}"${c.id===a.status?" selected":""}>${esc(c.name)}</option>`).join("")}</select></label>
-        <label class="fld"><span>Responsable</span><select data-field="owner"${dis}>${peopleOpts(a.owner)}</select></label>
+        <label class="fld"><span>Responsable${isNew?" *":""}</span><select data-field="owner"${dis}>${peopleOpts(a.owner, isNew)}</select></label>
         <label class="fld"><span>Date de fin</span><input type="date" data-field="due" value="${esc(a.due||"")}"${dis}></label>
         <label class="fld"><span>Soumis à relecture par</span><select data-field="relecteur"${dis}>${peopleOpts(a.relecteur||"",true)}</select></label>
         <label class="fld"><span>Soumis à validation par</span><select data-field="valideur"${dis}>${peopleOpts(a.valideur||"",true)}</select></label>
@@ -2020,7 +2070,7 @@ function renderDrawer(){
     </div>
     <div class="dw-f"><span class="meta">${a.createdAt && !isNew ? `Créée par ${esc(person(a.createdBy).name)} le ${esc(fmtShort.format(new Date(a.createdAt)))}` : ""}</span>
       ${S.readOnly||isNew ? "" : `<button class="btn ${S.pendingConfirm==="del:"+a.id?"confirm":"danger"}" data-act="dw-delete">${I.trash}${S.pendingConfirm==="del:"+a.id?"Confirmer la suppression":"Supprimer"}</button>`}
-      <button class="btn primary" data-act="dw-close">${isNew?"Créer l’action":"Fermer"}</button></div>
+      ${isNew ? `<p class="m-err" id="dwErr" hidden></p><button class="btn" data-act="dw-close">Annuler</button><button class="btn primary" data-act="dw-create">Créer l’action</button>` : `<button class="btn primary" data-act="dw-close">Fermer</button>`}</div>
   </aside>`;
   document.body.classList.add("dw-open");
 }
@@ -2140,7 +2190,7 @@ function addSub(){
   const a = clone(current()); if(!a.title) a.title = "Sans titre";
   a.subtasks = a.subtasks || [];
   const who = $("#stWho").value;
-  a.subtasks.push({id:uid("t"), text:txt, assignee:who, due:$("#stDue").value, done:false, doneAt:null});
+  a.subtasks.push({id:uid("t"), text:txt, assignee:who, due:$("#stDue").value, done:false, doneAt:null, createdBy:S.me});
   if(saveCur(a)){ renderDrawer(); $("#stWho").value = who; $("#stNew").focus(); }
 }
 function addComment(){
@@ -2196,6 +2246,11 @@ document.addEventListener("click", e=>{
     else if(act === "add-sub") addSub();
     else if(act === "add-com") addComment();
     else if(act === "pg-save") submitProgress();
+    else if(act === "dw-create") createDraft();
+    else if(act === "te-open"){ S.te = b.dataset.v; S.pendingConfirm = null; renderDrawer(); setTimeout(()=>{ const x = $("#teText"); x && x.focus(); }, 30); }
+    else if(act === "te-cancel"){ S.te = null; renderDrawer(); }
+    else if(act === "te-save") saveTaskEdit(b.dataset.v);
+    else if(act === "te-del") deleteTask(b.dataset.v);
     else if(act === "fe-open") openFicheEdit();
     else if(act === "fe-cancel"){ S.fe = null; renderDrawer(); }
     else if(act === "fe-save") saveFicheEdit();
