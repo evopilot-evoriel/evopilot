@@ -958,6 +958,33 @@ body{overflow-x:hidden}
 .fchip.late.on{background:var(--red-s);border-color:var(--red);color:var(--red)}
 #dwErr{margin:0 auto 0 0}
 @media (max-width:900px){.todo.view li.te{grid-template-columns:1fr 1fr}.todo.view li.te input:first-child{grid-column:1/-1}}
+/* ---------- Notifications ---------- */
+.nb-w{position:relative}
+.bell{position:relative;border:1px solid var(--line);background:var(--surface);width:38px;height:38px;border-radius:10px;display:grid;place-items:center;cursor:pointer;color:var(--muted)}
+.bell:hover{color:var(--text);border-color:var(--muted2)}
+.bell b{position:absolute;top:-6px;right:-7px;background:var(--late);color:#fff;font-size:10.5px;font-weight:800;border-radius:20px;padding:1px 5px;min-width:18px;text-align:center;line-height:1.4}
+.nb-pan{position:absolute;right:0;top:calc(100% + 8px);width:min(400px,92vw);max-height:70vh;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 16px 40px rgba(31,42,68,.18);z-index:45}
+.nb-h{display:flex;align-items:baseline;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface)}
+.nb-h b{font-size:14px}
+.nb-h small{font-size:12px;color:var(--muted)}
+.nb-pan ul{list-style:none;margin:0;padding:4px}
+.nb-i{display:flex;gap:10px;align-items:flex-start;width:100%;border:0;background:none;text-align:left;padding:9px 10px;border-radius:10px;cursor:pointer;position:relative}
+.nb-i:hover{background:var(--surface2)}
+.nb-i.new{background:var(--blue-s)}
+.nb-i.new::before{content:"";position:absolute;left:3px;top:50%;width:5px;height:5px;margin-top:-2.5px;border-radius:50%;background:var(--blue)}
+.nb-t{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;font-size:12.5px}
+.nb-t small{color:var(--muted);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nb-ic{color:var(--muted2);display:grid;margin-top:2px}
+.nb-ic svg{width:15px;height:15px}
+.nb-e{margin:0;padding:18px 16px;color:var(--muted);font-size:12.5px;text-align:center}
+.eks.k4{grid-template-columns:repeat(4,minmax(150px,1fr))}
+.lanes.rvl{grid-template-columns:repeat(2,minmax(0,1fr))}
+.lane.rel .lane-dot{background:var(--amber)}
+.lane.val .lane-dot{background:var(--green)}
+@media (max-width:900px){.lanes.rvl{grid-template-columns:1fr}}
+.af-chk{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;cursor:pointer;align-self:flex-start}
+.af-chk input{width:16px;height:16px;accent-color:var(--blue);margin:0}
+.drawer.noanim{animation:none}
 </style></head><body><div class="app"><aside id="side" aria-label="Menu"></aside><main id="main"><header id="top"></header><div id="view"><div class="loading">Chargement des actions…</div></div></main></div><div id="drawer"></div><div id="modal"></div><div id="toast" class="toast" role="status" aria-live="polite"></div><script>
 /* ======================= Référentiels ======================= */
 const DEFAULT_SETTINGS = {
@@ -1031,6 +1058,7 @@ const I = {
   review:'<svg viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></svg>',
   send:'<svg viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg>',
   ret:'<svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>',
+  bell:'<svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6.5 2 6.5H4S6 14 6 9z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>',
   okmini:'<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   pen:'<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>',
   lock:'<svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg>',
@@ -1358,7 +1386,7 @@ function renderTop(){
   <button class="tb-ic side-tg" data-act="side-toggle" aria-label="${S.sideHidden?"Afficher le menu":"Masquer le menu"}" title="${S.sideHidden?"Afficher le menu":"Masquer le menu"}">${I.sidebar}</button>
   ${S.hist.length ? `<button class="tb-ic" data-act="back" aria-label="Retour" title="Retour à la page précédente">${I.back}</button>` : ""}
   <div class="tt">${bid ? `<span class="tt-ic" style="--spc:${spColor(bid)}">${spIcon(bid)}</span>` : ""}<div><h1>${esc(t)}</h1><p>${esc(p)}</p></div></div>
-  <div class="top-r">${S.readOnly || S.route==="params" || S.route==="equipe" ? "" : `<button class="btn primary" data-act="new">${I.plus}<span>Nouvelle action</span></button>`}</div>`;
+  <div class="top-r">${bellHTML()}${S.readOnly || S.route==="params" || S.route==="equipe" ? "" : `<button class="btn primary" data-act="new">${I.plus}<span>Nouvelle action</span></button>`}</div>`;
 }
 
 /* ======================= Cartes ======================= */
@@ -1517,6 +1545,8 @@ function renderWeek(){
   const kDoing = acts.filter(x=>x.st==="doing").length;
   const kWait = acts.filter(x=>x.st==="waiting").length;
   const kRev = kinds.rev.length;
+  const isRev = REVIEWERS.includes(S.me);
+  const revRel = kinds.rev.filter(x=>!x.a.review || x.a.review.stage !== "validation"), revVal = kinds.rev.filter(x=>x.a.review && x.a.review.stage === "validation");
   const p0 = acts.filter(x=>x.a.priority==="P0" && x.st==="week").length;
   const recent = all.filter(x=>x.kind==="task" && x.done && x.t.doneAt && Date.now()-x.t.doneAt < 7*DAY);
   const lane = (cls, title, arr) => `<section class="lane ${cls}"><header><span class="lane-dot"></span><b>${title}</b><span class="lane-n">${arr.length}</span></header><div class="lane-b">${arr.length ? arr.map(tiHTML).join("") : `<p class="lane-empty">Rien de prévu.</p>`}</div></section>`;
@@ -1524,15 +1554,17 @@ function renderWeek(){
   const ek = (act, v, ic, cls, label, val, small, red) => `<button class="ek" data-act="${act}" data-v="${v}"><span class="ek-h"><span class="ek-ic ${cls}">${ic}</span><span class="ek-l">${label}</span></span><span class="ek-v${red?" red":""}">${val}</span><small>${small}</small></button>`;
   return `<div class="hero"><div><p class="date">${esc(dateStr)}</p><h1>Bonjour ${esc(me.name)}</h1><p class="scope">${plural(open.length,"élément ouvert","éléments ouverts")} à votre nom${S.mySp ? ", adjacence "+esc(backlogOf(S.mySp).name) : ", toutes adjacences confondues"}</p></div>
     <div class="hero-f">${fsel("fmysp","Adjacence",[["","Toutes"],...s.spaces.map(b=>[b.id,b.name])], S.mySp)}</div></div>
-  <div class="eks">
+  <div class="eks${isRev ? "" : " k4"}">
     ${ek("mine-kind","act",I.flag,"ic-blue","À lancer cette semaine",kLaunch, p0 ? plural(p0,"action")+" en P0" : "Aucune en P0")}
     ${ek("go-ens","doing",I.play,"ic-violet","En cours",kDoing,"Actions lancées")}
     ${ek("go-ens","waiting",I.hour,"ic-orange","En attente d’un retour",kWait,"Chez un relecteur")}
-    ${ek("mine-kind","rev",I.review,"ic-amber","Retours à donner",kRev, kRev ? "Relectures et validations" : "Rien à relire")}
+    ${isRev ? ek("mine-kind","rev",I.review,"ic-amber","Relecture et validation",kRev, `${revRel.length} à relire · ${revVal.length} à valider`) : ""}
     ${ek("mine-kind","late",I.warn,"ic-red","En retard",late.length, late.length ? "À traiter en priorité" : "Tout est à jour", !!late.length)}
   </div>
+  ${isRev ? `<div class="sec-h"><div><h2>${I.review}Relecture et validation</h2><p>Les actions envoyées en relecture ou en validation arrivent ici, avec leur deadline.</p></div></div>
+  <div class="lanes rvl">${lane("rel","À relire",revRel)}${lane("val","À valider",revVal)}</div>` : ""}
   <div class="sec-h"><div><h2>${I.week}Cette semaine</h2><p>Échéances à 7 jours et actions lancées, classées par priorité. Cochez une tâche dès qu’elle est faite.</p></div>
-    <div class="fchips">${[["all","Tout",kinds.all.length],["act","Mes actions",kinds.act.length],["rev","Retours à donner",kinds.rev.length],["task","Tâches confiées",kinds.task.length],["late","En retard",kinds.late.length]].map(([k,l,n])=>`<button class="fchip${k==="late"?" late":""}${S.mineKind===k?" on":""}" data-act="mine-kind" data-v="${k}">${l}<b>${n}</b></button>`).join("")}</div></div>
+    <div class="fchips">${[["all","Tout",kinds.all.length],["act","Mes actions",kinds.act.length],...(isRev ? [["rev","Relecture et validation",kinds.rev.length]] : []),["task","Tâches confiées",kinds.task.length],["late","En retard",kinds.late.length]].map(([k,l,n])=>`<button class="fchip${k==="late"?" late":""}${S.mineKind===k?" on":""}" data-act="mine-kind" data-v="${k}">${l}<b>${n}</b></button>`).join("")}</div></div>
   ${late.length?`<div class="late-banner">${I.warn}<b>${plural(late.length,"élément")} en retard</b>à traiter en priorité</div>`:""}
   <div class="lanes">${lane("today","Aujourd’hui et en retard",L.today)}${lane("d3","Sous 3 jours",L.d3)}${lane("wk","D’ici 7 jours",L.wk)}</div>
   <div class="sec-h"><div><h2>${I.cal}Semaines suivantes</h2><p>Moins prioritaire : à anticiper</p></div></div>
@@ -1729,13 +1761,64 @@ function saveCur(a){
 }
 const FUNNEL = [["later","Planifiée"],["week","À lancer"],["doing","En cours"],["waiting","En retour"],["done","Clôturée"]];
 const NEXT_SUGG = ["Lancer l’action","Relancer l’interlocuteur","Préparer le document","Envoyer la proposition","Organiser un point","Faire relire","Faire valider","Mettre à jour le dossier","Clôturer le sujet"];
+/* ======================= Relecture / validation et notifications ======================= */
+const REVIEWERS = ["romain", "helene"];
+function reviewerOpts(sel){ const ppl = settings().people.filter(p=>REVIEWERS.includes(p.id)); return `<option value="">Personne</option>` + ppl.map(p=>`<option value="${esc(p.id)}"${p.id===sel?" selected":""}>${esc(p.name)}</option>`).join("") + (sel && !ppl.some(p=>p.id===sel) ? `<option value="${esc(sel)}" selected>${esc(person(sel).name)}</option>` : ""); }
+function stageOk(a, stage){ return (a.reviewLog||[]).some(l=>l.type==="ok" && (l.stage||"relecture") === stage); }
+function validatorOf(a){ return a.valideur || ADMIN; }
+function needsValidation(a){ return validatorOf(a) !== S.me && !stageOk(a, "validation"); }
+const ST_COLOR = {"rv-rel":"waiting", "close":"done"};
+function stLabel(a, v){
+  if(v === "rv-rel") return "Envoyer en relecture" + (a.relecteur ? " à " + person(a.relecteur).name : "");
+  if(v === "close") return needsValidation(a) ? "Clôturer / envoyer en validation à " + person(validatorOf(a)).name : "Clôturer l’action";
+  if(v === "later") return "Mettre en pause";
+  if(v === "waiting") return "En attente d’un retour";
+  return COL_NAME[v] || v;
+}
+function notifsFor(me){
+  const out = [], lim = Date.now() - 30*DAY;
+  for(const a of S.actions.values()){
+    if(a.archived) continue;
+    const push = (at, by, ic, txt) => { if(at && by && by !== me) out.push({at, by, a, ic, txt}); };
+    if(a.owner === me && !a.ownerSince) push(a.createdAt, a.createdBy, "flag", "vous a attribué l’action");
+    if(a.owner === me && a.ownerSince) push(a.ownerSince.at, a.ownerSince.by, "flag", "vous a confié l’action");
+    (a.subtasks||[]).forEach(s=>{
+      if(s.assignee === me) push(s.at || a.createdAt, s.createdBy || a.createdBy, "task", `vous a confié la tâche « ${s.text} »`);
+      if(s.done && (s.createdBy || a.createdBy) === me) push(s.doneAt, s.doneBy, "check", `a clôturé la tâche « ${s.text} »`);
+    });
+    (a.reviewLog||[]).forEach(l=>{
+      if(l.to !== me) return;
+      if(l.type === "request") push(l.at, l.by, "review", `vous demande une ${stageName(l.stage)}`);
+      else if(l.type === "return") push(l.at, l.by, "ret", "vous renvoie l’action pour modification");
+      else push(l.at, l.by, "check", l.stage === "validation" ? "a validé votre action" : "a validé la relecture");
+    });
+    (a.progress||[]).forEach(p=>{ if(p.next && p.next.who === me) push(p.at, p.by, "bolt", `vous confie la prochaine action « ${p.next.label} »`); });
+    const concerned = a.owner === me || a.createdBy === me || a.relecteur === me || a.valideur === me;
+    if(concerned) (a.comments||[]).forEach(c=>push(c.at, c.who, "chat", "a commenté"));
+  }
+  return out.filter(n=>n.at > lim).sort((x,y)=>y.at-x.at).slice(0, 40);
+}
+function notifSeen(){ return +(LS.get("evopilot.seen." + S.me) || 0); }
+function bellHTML(){
+  if(S.mode === "loading" || S.auth === "pending" || S.auth === "claim") return "";
+  const ns = notifsFor(S.me), seen = S.notifOpen ? (S.notifPrev || 0) : notifSeen();
+  const unread = ns.filter(n=>n.at > seen).length;
+  if(!S.notifInit){ if(S.loaded){ S.notifInit = true; S.notifLast = ns.length ? ns[0].at : 0; } }
+  else if(ns.length && ns[0].at > (S.notifLast || 0)){
+    const n = ns[0]; S.notifLast = n.at;
+    if(n.at > notifSeen()) setTimeout(()=>toast(`${person(n.by).name} ${n.txt} : ${n.a.title || "Sans titre"}`), 0);
+  }
+  const panel = S.notifOpen ? `<div class="nb-pan" role="dialog" aria-label="Notifications"><div class="nb-h"><b>Notifications</b>${ns.length ? `<small>${unread ? plural(unread, "nouvelle", "nouvelles") : "Tout est lu"}</small>` : ""}</div>
+    ${ns.length ? `<ul>${ns.map(n=>`<li><button class="nb-i${n.at > seen ? " new" : ""}" data-open="${esc(n.a.id)}">${avatar(n.by,"sm")}<span class="nb-t"><span><b>${esc(person(n.by).name)}</b> ${esc(n.txt)}</span><small>${esc(n.a.title || "Sans titre")} · ${esc(fmtStamp.format(new Date(n.at)))}</small></span><span class="nb-ic">${I[n.ic] || I.flag}</span></button></li>`).join("")}</ul>` : `<p class="nb-e">Aucune notification pour l’instant. Vous serez alerté dès qu’une action, une tâche, une relecture ou un commentaire vous concerne.</p>`}</div>` : "";
+  return `<div class="nb-w"><button class="bell" data-act="notif" aria-label="Notifications${unread ? ", " + unread + " non lues" : ""}" aria-expanded="${!!S.notifOpen}" title="Notifications">${I.bell}${unread ? `<b>${unread > 99 ? "99+" : unread}</b>` : ""}</button>${panel}</div>`;
+}
 function suggestNext(a){
   const s = effStatus(a).s;
   if(s === "later") return "week";
   if(s === "week") return "doing";
-  if(s === "doing"){ const valOk = (a.reviewLog||[]).some(l=>l.type==="ok" && l.stage==="validation"); return (a.relecteur || a.valideur) && !valOk ? "waiting" : "done"; }
+  if(s === "doing") return a.relecteur && !stageOk(a, "relecture") ? "rv-rel" : "close";
   if(s === "waiting") return "doing";
-  return "done";
+  return "close";
 }
 function funnelHTML(a){
   const s = effStatus(a), ci = FUNNEL.findIndex(f=>f[0]===s.s), rv = activeRev(a);
@@ -1762,7 +1845,7 @@ function timelineHTML(a){
     if(p.toWaiting) extra.push(`<span class="tl-tag st">${I.right}Envoi en retour</span>`);
     if(p.next) extra.push(`<span class="tl-tag nx">Prochaine action : ${esc(p.next.label)}${p.next.who && p.next.who !== a.owner ? " · confiée à "+esc(person(p.next.who).name) : ""}${p.next.due?" · "+esc(fmtShort.format(parseISO(p.next.due))):""}</span>`);
     if(p.newDue) extra.push(`<span class="tl-tag nx">Nouvelle échéance : ${esc(fmtShort.format(parseISO(p.newDue)))}</span>`);
-    ev.push({at:p.at, by:p.by, cls:p.done?"t-ok":"t-prog", html, note:p.note, extra:extra.join("")});
+    ev.push({at:p.at, by:p.by, cls:p.done?"t-ok":"t-prog", html, note: p.stNote ? p.note + "\n— " + p.stNote : p.note, extra:extra.join("")});
   });
   (a.reviewLog||[]).forEach(l=>{
     const txt = l.type === "request" ? `a envoyé en ${stageName(l.stage)} à <b>${esc(person(l.to).name)}</b>`
@@ -1778,7 +1861,7 @@ function timelineHTML(a){
 function pgSync(){
   const g = id => { const el = $("#"+id); return el ? (el.type === "checkbox" ? el.checked : el.value) : undefined; };
   const P = S.pg;
-  [["note","pgNote"],["next","pgNext"],["nextDue","pgNextDue"],["who","pgWho"],["st","pgStatus"],["due","pgDue"]].forEach(([k,id])=>{ const v = g(id); if(v !== undefined) P[k] = v; });
+  [["note","pgNote"],["stNote","pgStNote"],["next","pgNext"],["nextDue","pgNextDue"],["who","pgWho"],["st","pgStatus"],["due","pgDue"]].forEach(([k,id])=>{ const v = g(id); if(v !== undefined) P[k] = v; });
 }
 function progressHTML(a){
   const P = S.pg, dis = S.readOnly ? " disabled" : "";
@@ -1788,7 +1871,7 @@ function progressHTML(a){
   const cur = nx ? {label:nx.label, who:nx.who, due:nx.due} : {label:a.title||"Sans titre", who:a.owner, due:a.due};
   const di = cur.due ? dueInfo(cur.due, false) : null;
   const st = P.st || suggestNext(a);
-  const stOpts = COLS.filter(c=>c.id !== a.status || c.id === "doing").map(c=>`<option value="${c.id}"${c.id===st?" selected":""}>${c.id==="done"?"Terminé : clôturer l’action":c.id==="waiting"?"En attente d’un retour (relecture / validation)":esc(c.name)}</option>`).join("");
+  const stOpts = ["week","doing","waiting","rv-rel","close","later"].filter(v=>v !== a.status || v === "doing").map(v=>`<option value="${v}"${v===st?" selected":""}>${esc(stLabel(a, v))}</option>`).join("");
   const rv = activeRev(a);
   return `<section class="afc"><h3>${I.bolt}Faire avancer l’action</h3>
     <div class="af-step"><span class="af-n">1</span><div class="af-b"><b>Action en cours</b>
@@ -1798,13 +1881,14 @@ function progressHTML(a){
       ${P.done ? "" : (nx ? `<label class="fld af-inl"><span>Nouvelle échéance pour cette action (optionnel)</span><input type="date" id="pgDue" value="${esc(P.due||"")}"${dis}></label>` : "")}
       <label class="af-fin2"><input type="checkbox" id="pgDone"${P.done?" checked":""}${dis}>Étape finalisée</label></div></div>
     ${P.done ? `<div class="af-step"><span class="af-n">2</span><div class="af-b"><b>Nouveau statut</b>
-      ${P.stOpen ? `<select id="pgStatus"${dis}>${stOpts}</select>` : `<input type="hidden" id="pgStatus" value="${st}"><button type="button" class="af-next" data-act="pg-st"><span class="ti-ic" style="background:color-mix(in srgb,var(--s-${st}) 16%,transparent);color:var(--s-${st})">${I.grid}</span><span><small>Suggéré selon l’avancement</small><b>${st==="done"?"Terminé : clôturer l’action":esc(COL_NAME[st])}</b></span>${I.pen}</button>`}
-      ${st === "waiting" ? `<p class="af-mini">À la validation, vous choisirez la deadline du retour (${a.relecteur||a.valideur ? "personne déjà définie sur la fiche" : "et la personne"}).</p>` : ""}</div></div>
-      ${st === "done" ? "" : `<div class="af-step"><span class="af-n">3</span><div class="af-b"><b>Prochaine action</b>
-        <input id="pgNext" list="pgSugg" placeholder="Écrivez la prochaine action ou choisissez une suggestion" value="${esc(P.next||"")}"${dis}><datalist id="pgSugg">${NEXT_SUGG.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
+      ${P.stOpen ? `<select id="pgStatus"${dis}>${stOpts}</select>` : `<input type="hidden" id="pgStatus" value="${st}"><button type="button" class="af-next" data-act="pg-st"><span class="ti-ic" style="background:color-mix(in srgb,var(--s-${ST_COLOR[st]||st}) 16%,transparent);color:var(--s-${ST_COLOR[st]||st})">${I.grid}</span><span><small>Suggéré selon l’avancement</small><b>${esc(stLabel(a, st))}</b></span>${I.pen}</button>`}
+      ${st === "waiting" || st === "rv-rel" || (st === "close" && needsValidation(a)) ? `<p class="af-mini">Après validation, vous choisirez la deadline du retour${(st === "rv-rel" && a.relecteur) || st === "close" ? " : la personne est celle indiquée sur la fiche" : ""}.</p>` : ""}
+      <textarea id="pgStNote" rows="2" placeholder="Commentaire sur ce changement de statut (facultatif)"${dis}>${esc(P.stNote||"")}</textarea></div></div>
+      ${st === "close" ? "" : `<div class="af-step"><span class="af-n">3</span><div class="af-b"><label class="af-chk"><input type="checkbox" id="pgAddNext"${P.addNext?" checked":""}${dis}>Ajouter une prochaine action</label>
+        ${P.addNext ? `<input id="pgNext" list="pgSugg" placeholder="Écrivez la prochaine action ou choisissez une suggestion" value="${esc(P.next||"")}"${dis}><datalist id="pgSugg">${NEXT_SUGG.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
         <div class="grid2"><label class="fld"><span>Échéance</span><input type="date" id="pgNextDue" value="${esc(P.nextDue||"")}"${dis}></label>
         <label class="fld"><span>À réaliser par</span><select id="pgWho"${dis}>${peopleOpts(P.who || a.owner)}</select></label></div>
-        <p class="af-mini">Confiée à une autre personne, elle apparaît dans son espace comme tâche à réaliser.</p></div></div>`}` : ""}
+        <p class="af-mini">Confiée à une autre personne, elle apparaît dans son espace comme tâche à réaliser.</p>` : ""}</div></div>`}` : ""}
     <p class="m-err" id="pgErr" hidden></p>
     <button class="btn primary blk" data-act="pg-save"${dis}>Valider l’avancement</button>
   </section>`;
@@ -1818,24 +1902,33 @@ function submitProgress(){
   const a = clone(a0), now = Date.now();
   a.progress = a.progress || []; a.subtasks = a.subtasks || [];
   const entry = {by:S.me, at:now, note, done:!!P.done, label: a.next ? a.next.label : null};
+  const stNote = P.done ? (P.stNote||"").trim() : "";
+  if(stNote) entry.stNote = stNote;
   let toWaiting = false;
   if(P.done){
     const ns = P.st || suggestNext(a);
-    if(ns !== "done"){
-      const lab = (P.next||"").trim();
-      if(!lab) return err("Indiquez la prochaine action à réaliser.");
+    if(ns !== "close"){
+      const lab = P.addNext ? (P.next||"").trim() : "";
+      if(P.addNext && !lab) return err("Indiquez la prochaine action, ou décochez « Ajouter une prochaine action ».");
+      if(lab){
       const who = P.who || a.owner;
       a.next = {label:lab, due:P.nextDue||"", who, at:now, by:S.me};
       entry.next = {label:lab, due:P.nextDue||"", who};
-      if(who && who !== a.owner) a.subtasks.push({id:uid("t"), text:lab, assignee:who, due:P.nextDue||"", done:false, doneAt:null, fromNext:true, createdBy:S.me});
+      if(who && who !== a.owner) a.subtasks.push({id:uid("t"), text:lab, assignee:who, due:P.nextDue||"", done:false, doneAt:null, fromNext:true, createdBy:S.me, at:Date.now()});
+      }
     } else a.next = null;
-    if(ns === "waiting"){ if(a.status !== "waiting"){ toWaiting = true; entry.toWaiting = true; } }
+    if(ns === "close"){
+      if(needsValidation(a)){ toWaiting = "validation"; entry.toWaiting = true; }
+      else { entry.from = a.status; entry.to = "done"; applyStatus(a, "done"); }
+    }
+    else if(ns === "rv-rel"){ toWaiting = "relecture"; entry.toWaiting = true; }
+    else if(ns === "waiting"){ if(a.status !== "waiting"){ toWaiting = true; entry.toWaiting = true; } }
     else if(ns !== a.status){ entry.from = a.status; entry.to = ns; applyStatus(a, ns); }
   } else if(P.due && a.next){ a.next.due = P.due; entry.newDue = P.due; }
   a.progress.push(entry);
   if(persist(a)){
     S.pg = {}; renderDrawer();
-    if(toWaiting) openReviewModal(a.id, "request");
+    if(toWaiting){ openReviewModal(a.id, "request", typeof toWaiting === "string" ? {stage: toWaiting} : {}); const mn = $("#mNote"); if(mn && stNote) mn.value = stNote; }
     else toast(entry.to === "done" ? "Action clôturée." : "Avancement enregistré.");
   }
 }
@@ -1908,8 +2001,8 @@ function ficheHTML(a){
       <div class="grid2">
         <label class="fld"><span>Responsable</span><select id="feOwner">${peopleOpts(f.owner)}</select></label>
         <label class="fld"><span>Date de fin</span><input type="date" id="feDue" value="${esc(f.due||"")}"></label>
-        <label class="fld"><span>Soumis à relecture par</span><select id="feRel">${peopleOpts(f.relecteur||"",true)}</select></label>
-        <label class="fld"><span>Soumis à validation par</span><select id="feVal">${peopleOpts(f.valideur||"",true)}</select></label>
+        <label class="fld"><span>Soumis à relecture par</span><select id="feRel">${reviewerOpts(f.relecteur||"")}</select></label>
+        <label class="fld"><span>Soumis à validation par</span><select id="feVal">${reviewerOpts(f.valideur||"")}</select></label>
         <label class="fld"><span>Priorité</span><select id="fePrio">${["","P0","P1","P2"].map(p=>`<option value="${p}"${(f.priority||"")===p?" selected":""}>${p||"Aucune"}</option>`).join("")}</select></label>
         <label class="fld"><span>Adjacence</span><select id="feSpace">${settings().spaces.map(s=>`<option value="${esc(s.id)}"${s.id===backlogOf(f.space).id?" selected":""}>${esc(s.name)}</option>`).join("")}</select></label>
       </div>
@@ -1947,6 +2040,7 @@ function saveFicheEdit(){
   const L = {title:"Intitulé", owner:"Responsable", due:"Date de fin", relecteur:"Relecture", valideur:"Validation", priority:"Priorité", space:"Adjacence", desc:"Description"};
   const a = clone(a0), changed = [];
   Object.keys(n).forEach(k=>{ if((a[k]||"") !== (n[k]||"")){ changed.push(L[k]); a[k] = n[k]; } });
+  if(changed.includes("Responsable")) a.ownerSince = {at:Date.now(), by:S.me};
   S.fe = null;
   if(!changed.length){ renderDrawer(); return; }
   if(persist(a)){ renderDrawer(); toast("Fiche modifiée."); }
@@ -2010,6 +2104,7 @@ function renderDrawerView(a){
   const pv = pid => pid ? `<span class="own">${avatar(pid,"sm")}${esc(person(pid).name)}</span>` : `<span class="muted2">Personne</span>`;
   const di = a.due ? dueInfo(a.due, a.status==="done") : null;
   const kv = (l, v) => `<div><dt>${l}</dt><dd>${v}</dd></div>`;
+  const _keep = drawerKeep();
   $("#drawer").innerHTML = `<div class="dw-ov" data-act="dw-close"></div>
   <aside class="drawer wide" role="dialog" aria-modal="true" aria-label="${esc(a.title||"Action")}">
     <div class="dw-h"><span class="ti-ic" style="color:${spColor(b.id)}">${spIcon(b.id)}</span><div><small style="color:${spColor(b.id)}">${esc(b.name)}</small><h2 class="dw-t">${esc(a.title||"Sans titre")}</h2></div>${a.priority?`<span class="prio ${esc(a.priority)}">${esc(a.priority)}</span>`:""}<button class="x" data-act="dw-close" aria-label="Fermer">${I.x}</button></div>
@@ -2032,7 +2127,10 @@ function renderDrawerView(a){
     <div class="dw-f"><span class="meta">Créée par ${esc(person(a.createdBy).name)} le ${esc(fmtShort.format(new Date(a.createdAt||Date.now())))}</span>${S.readOnly ? "" : `<button class="btn danger" data-act="del-open">${I.trash}Supprimer</button>`}<button class="btn primary" data-act="dw-close">Fermer</button></div>
   </aside>`;
   document.body.classList.add("dw-open");
+  drawerRestore(_keep);
 }
+function drawerKeep(){ const b = document.querySelector("#drawer .dw-b"); return b ? {top:b.scrollTop} : null; }
+function drawerRestore(k){ if(!k) return; const d = document.querySelector("#drawer .drawer"); if(d) d.classList.add("noanim"); const b = document.querySelector("#drawer .dw-b"); if(b) b.scrollTop = k.top; }
 function renderDrawer(){
   const a = current();
   if(!a){ $("#drawer").innerHTML = ""; document.body.classList.remove("dw-open"); return; }
@@ -2040,6 +2138,7 @@ function renderDrawer(){
   const b = backlogOf(a.space), subs = a.subtasks||[], nd = subs.filter(t=>t.done).length, dis = S.readOnly ? " disabled" : "";
   const isNew = !S.actions.has(a.id);
   const coms = (a.comments||[]).map(c=>`<li>${avatar(c.who,"sm")}<div class="bub"><div class="who"><b>${esc(person(c.who).name)}</b>, ${esc(fmtStamp.format(new Date(c.at)))}</div><div class="txt">${esc(c.text)}</div></div></li>`).join("");
+  const _keep = drawerKeep();
   $("#drawer").innerHTML = `<div class="dw-ov" data-act="dw-close"></div>
   <aside class="drawer" role="dialog" aria-modal="true" aria-label="${esc(a.title||"Nouvelle action")}">
     <div class="dw-h"><span class="ti-ic">${I.flag}</span><div><small>${isNew?"Nouvelle action, ":""}${esc(b.name)}</small><input class="dw-title" data-field="title" value="${esc(a.title)}" placeholder="Intitulé de l’action" aria-label="Intitulé de l’action"${dis}></div><button class="x" data-act="dw-close" aria-label="Fermer">${I.x}</button></div>
@@ -2049,8 +2148,8 @@ function renderDrawer(){
         <label class="fld"><span>Statut</span><select data-field="status"${dis}>${COLS.map(c=>`<option value="${c.id}"${c.id===a.status?" selected":""}>${esc(c.name)}</option>`).join("")}</select></label>
         <label class="fld"><span>Responsable${isNew?" *":""}</span><select data-field="owner"${dis}>${peopleOpts(a.owner, isNew)}</select></label>
         <label class="fld"><span>Date de fin</span><input type="date" data-field="due" value="${esc(a.due||"")}"${dis}></label>
-        <label class="fld"><span>Soumis à relecture par</span><select data-field="relecteur"${dis}>${peopleOpts(a.relecteur||"",true)}</select></label>
-        <label class="fld"><span>Soumis à validation par</span><select data-field="valideur"${dis}>${peopleOpts(a.valideur||"",true)}</select></label>
+        <label class="fld"><span>Soumis à relecture par</span><select data-field="relecteur"${dis}>${reviewerOpts(a.relecteur||"")}</select></label>
+        <label class="fld"><span>Soumis à validation par</span><select data-field="valideur"${dis}>${reviewerOpts(a.valideur||"")}</select></label>
       </div>
       <div class="fld"><span>Priorité</span><div class="seg" role="group" aria-label="Priorité">${["","P0","P1","P2"].map(p=>`<button data-prio="${p}" class="${(a.priority||"")===p?"on":""}" aria-pressed="${(a.priority||"")===p}"${dis}>${p||"Aucune"}</button>`).join("")}</div></div>
       <p class="note" id="hint">${hintText(a)?I.info+esc(hintText(a)):""}</p>
@@ -2073,6 +2172,7 @@ function renderDrawer(){
       ${isNew ? `<p class="m-err" id="dwErr" hidden></p><button class="btn" data-act="dw-close">Annuler</button><button class="btn primary" data-act="dw-create">Créer l’action</button>` : `<button class="btn primary" data-act="dw-close">Fermer</button>`}</div>
   </aside>`;
   document.body.classList.add("dw-open");
+  drawerRestore(_keep);
 }
 const stageName = st => st === "validation" ? "validation" : "relecture";
 function reviewSection(a){
@@ -2109,7 +2209,7 @@ function openReviewModal(id, mode, extra){
   const r = a.review || {}, isReq = mode === "request";
   const stage = isReq ? (extra.stage || defaultStage(a)) : (r.stage || "relecture");
   S.modal = {id, mode, stage, extra};
-  const stageWho = st => st === "validation" ? a.valideur : a.relecteur;
+  const stageWho = st => st === "validation" ? validatorOf(a) : a.relecteur;
   const others = settings().people.filter(p=>p.id !== a.owner);
   const defWho = isReq ? (stageWho(stage) || (others[0]||{}).id || "") : (r.requester || a.owner);
   const Stg = stage === "validation" ? "Validation" : "Relecture";
@@ -2117,7 +2217,7 @@ function openReviewModal(id, mode, extra){
     <div class="mh"><span class="ti-ic ${isReq?"ic-amber":"ic-violet"}">${isReq?I.review:I.ret}</span><div><h2 id="mTitle">${isReq?"Envoyer en "+stage:Stg+" faite"}</h2><p>${esc(a.title||"Nouvelle action")}</p></div><button class="x" data-act="m-close" aria-label="Fermer">${I.x}</button></div>
     ${isReq ? `<div class="fld"><span>Étape</span><div class="seg" role="group" aria-label="Étape">${["relecture","validation"].map(x=>`<button data-act="m-stage" data-v="${x}" class="${x===stage?"on":""}" aria-pressed="${x===stage}">${x==="relecture"?"Relecture":"Validation"}${stageWho(x)?" · "+esc(person(stageWho(x)).name):""}</button>`).join("")}</div></div>` : ""}
     <div class="grid2">
-      ${(()=>{ const lw = isReq ? stageWho(stage) : (r.requester || a.owner); const lb = isReq ? (stage==="validation"?"Qui valide":"Qui relit") : "Renvoyée à"; return lw ? `<div class="fld"><span>${lb}</span><div class="lockv">${avatar(lw,"sm")}${esc(person(lw).name)}</div><input type="hidden" id="mWho" value="${esc(lw)}"></div>` : `<label class="fld"><span>${lb}</span><select id="mWho">${peopleOpts(defWho)}</select></label>`; })()}
+      ${(()=>{ const lw = isReq ? stageWho(stage) : (r.requester || a.owner); const lb = isReq ? (stage==="validation"?"Qui valide":"Qui relit") : "Renvoyée à"; return lw ? `<div class="fld"><span>${lb}</span><div class="lockv">${avatar(lw,"sm")}${esc(person(lw).name)}</div><input type="hidden" id="mWho" value="${esc(lw)}"></div>` : `<label class="fld"><span>${lb}</span><select id="mWho">${isReq ? reviewerOpts(REVIEWERS.includes(defWho) ? defWho : "") : peopleOpts(defWho)}</select></label>`; })()}
       <label class="fld"><span>${isReq?"Deadline du retour":"Deadline des modifications"}</span><input type="date" id="mDue" value="${plusDays(3)}"></label>
     </div>
     <label class="fld"><span>${isReq?"Message (optionnel)":"Commentaires"}</span><textarea id="mNote" rows="3" placeholder="${isReq?"Ce qu’il faut regarder, liens, points d’attention":"Ce qu’il faut modifier"}"></textarea></label>
@@ -2190,7 +2290,7 @@ function addSub(){
   const a = clone(current()); if(!a.title) a.title = "Sans titre";
   a.subtasks = a.subtasks || [];
   const who = $("#stWho").value;
-  a.subtasks.push({id:uid("t"), text:txt, assignee:who, due:$("#stDue").value, done:false, doneAt:null, createdBy:S.me});
+  a.subtasks.push({id:uid("t"), text:txt, assignee:who, due:$("#stDue").value, done:false, doneAt:null, createdBy:S.me, at:Date.now()});
   if(saveCur(a)){ renderDrawer(); $("#stWho").value = who; $("#stNew").focus(); }
 }
 function addComment(){
@@ -2210,6 +2310,7 @@ function toggleSub(aid, sid, done){
 function moveTo(id, status, space){
   const cur = S.actions.get(id); if(!cur) return;
   if(status === "waiting" && cur.status !== "waiting"){ openReviewModal(id, "request", {space}); return; }
+  if(status === "done" && cur.status !== "done" && needsValidation(cur)){ toast("Action à valider par " + person(validatorOf(cur)).name + " avant clôture."); openReviewModal(id, "request", {stage:"validation"}); return; }
   const a = clone(cur); let ch = false;
   if(space && backlogOf(a.space).id !== space){ a.space = space; ch = true; }
   if(status && status !== a.status && !(status === "week" && effStatus(a).s === "week" && a.status === "week")){
@@ -2258,7 +2359,7 @@ document.addEventListener("click", e=>{
     else if(act === "ce-cancel"){ S.ce = null; renderDrawer(); }
     else if(act === "ce-save") saveCommentEdit(b.dataset.v);
     else if(act === "del-open"){ const a = current(); if(a) openDeleteModal(a.id); }
-    else if(act === "pg-st"){ pgSync(); S.pg.stOpen = true; renderDrawer(); }
+    else if(act === "pg-st"){ pgSync(); S.pg.stOpen = true; renderDrawer(); const sel = $("#pgStatus"); if(sel){ sel.focus({preventScroll:true}); try{ sel.showPicker && sel.showPicker(); }catch(e){} } }
     else if(act === "set-status"){ const a = current(); if(!a) return; const v = b.dataset.v; if(v === a.status) return;
       if(v === "waiting"){ openReviewModal(a.id, "request"); return; }
       const n = clone(a); applyStatus(n, v); if(persist(n)){ renderDrawer(); toast("Statut : "+COL_NAME[v]+"."); } }
@@ -2268,11 +2369,14 @@ document.addEventListener("click", e=>{
     return;
   }
   if(S.profOpen && !t.closest(".side-foot")){ S.profOpen = false; render(); }
+  if(S.notifOpen && !t.closest(".nb-w")){ S.notifOpen = false; render(); }
+  if(t.closest(".nb-pan [data-open]")){ const id = t.closest("[data-open]").dataset.open; S.notifOpen = false; render(); openAction(id); return; }
   const g = t.closest("[data-go]");
   if(g && !t.closest("[data-act]")){ go(g.dataset.go); return; }
   const b = t.closest("[data-act]");
   if(b){
     const act = b.dataset.act, v = b.dataset.v;
+    if(act === "notif"){ if(S.notifOpen){ S.notifOpen = false; } else { S.notifOpen = true; S.notifPrev = notifSeen(); LS.set("evopilot.seen." + S.me, Date.now()); } render(); return; }
     if(act === "menu"){ document.body.classList.toggle("nav-open"); return; }
     if(act === "side-toggle"){ S.sideHidden = !S.sideHidden; LS.set("evopilot.sideHidden", S.sideHidden); render(); return; }
     if(act === "back"){ goBack(); return; }
@@ -2319,6 +2423,7 @@ document.addEventListener("change", e=>{
   const el = e.target;
   if(el.closest("#drawer")){
     if(el.id === "pgDone"){ pgSync(); S.pg.done = el.checked; renderDrawer(); return; }
+    if(el.id === "pgAddNext"){ pgSync(); S.pg.addNext = el.checked; renderDrawer(); if(el.checked) setTimeout(()=>{ const x = $("#pgNext"); x && x.focus(); }, 30); return; }
     if(el.id === "pgStatus"){ pgSync(); renderDrawer(); return; }
     if(el.dataset.field){ setField(el.dataset.field, el.dataset.field === "title" ? el.value.trim() : el.value); return; }
     const li = el.closest(".todo li"); if(!li) return; const sid = li.dataset.sub;
@@ -2402,7 +2507,7 @@ let toastT;
 function toast(m){ const t = $("#toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove("show"), 3200); }
 
 /* ======================= Démarrage ======================= */
-function loadLocal(){
+function loadLocal(){ S.loaded = true;
   const arr = LS.get("evopilot.actions") || []; S.actions = new Map(arr.map(a=>[a.id,a]));
   const st = LS.get("evopilot.settings"); if(st && Array.isArray(st.spaces) && Array.isArray(st.people)){ S.settings = st; const g = st.spaces.find(x=>x.id==="general"); if(g && g.name === "Général"){ g.name = "Projet à l’étude & autre"; LS.set("evopilot.settings", st); } }
 }
@@ -2432,7 +2537,7 @@ async function init(){
   let ok = false;
   const timer = setTimeout(()=>{ if(!ok){ S.stale = true; render(); } }, 10000);
   db.collection("actions").onSnapshot(snap=>{
-    S.actions = new Map(snap.docs.map(d=>[d.id, Object.assign({}, d.data(), {id:d.id})]));
+    S.actions = new Map(snap.docs.map(d=>[d.id, Object.assign({}, d.data(), {id:d.id})])); S.loaded = true;
     if(!snap.metadata.fromCache){ ok = true; S.stale = false; clearTimeout(timer); }
     render();
     if(S.openId && !current()){ S.openId = null; $("#drawer").innerHTML = ""; document.body.classList.remove("dw-open"); toast("Cette action a été supprimée par un membre de l’équipe."); }
